@@ -9,7 +9,8 @@
     --foreground: #0f172a;
     --card: #ffffff;
     --card-foreground: #0f172a;
-    --primary: #dc2626;
+    --primary: #2563eb;
+    --primary-hover: #1d4ed8;
     --primary-foreground: #ffffff;
     --secondary: #f1f5f9;
     --secondary-foreground: #0f172a;
@@ -17,7 +18,7 @@
     --muted-foreground: #64748b;
     --border: #e2e8f0;
     --input: #e2e8f0;
-    --ring: #dc2626;
+    --ring: #2563eb;
     --radius: 0.5rem;
     --success: #16a34a;
     --warning: #ca8a04;
@@ -128,7 +129,7 @@ p, .stMarkdown p {
 }
 
 .stButton > button:hover {
-    background-color: #b91c1c !important;
+    background-color: var(--primary-hover) !important;
     box-shadow: 0 4px 6px rgba(0,0,0,0.1) !important;
 }
 
@@ -165,7 +166,7 @@ p, .stMarkdown p {
 .stTextInput > div > div > input:focus,
 .stNumberInput > div > div > input:focus {
     border-color: var(--ring) !important;
-    box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.1) !important;
+    box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.1) !important;
 }
 
 /* Number input stepper buttons */
@@ -289,7 +290,7 @@ hr {
 
 .stSelectbox [data-baseweb="select"]:focus-within > div {
     border-color: var(--ring) !important;
-    box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.1) !important;
+    box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.1) !important;
 }
 
 /* ===== Captions ===== */
