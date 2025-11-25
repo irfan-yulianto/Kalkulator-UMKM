@@ -95,16 +95,18 @@ def calculate_all(
     ingredients: List[Dict],
     output_units: int,
     target_margin_percent: float,
-    actual_selling_price: float = None
+    actual_selling_price: float = None,
+    operational_cost: float = 0.0,
+    other_cost: float = 0.0
 ) -> Dict:
     """
     Calculate all HPP metrics.
 
     Returns a dictionary with all calculated values.
     """
-    # Calculate line costs and total
+    # Calculate line costs and total for ingredients
     processed_ingredients = []
-    total_batch_cost = 0.0
+    material_cost = 0.0
 
     for ing in ingredients:
         name = ing.get('name', '').strip()
@@ -116,7 +118,7 @@ def calculate_all(
         unit = ing.get('unit', 'unit')
 
         line_cost = calculate_line_cost(quantity, price_per_unit)
-        total_batch_cost += line_cost
+        material_cost += line_cost
 
         processed_ingredients.append({
             'name': name,
@@ -127,11 +129,18 @@ def calculate_all(
             'contribution_percent': 0  # Will be calculated after we have total
         })
 
-    # Calculate contribution percentages
+    # Total batch cost = material + operational + other
+    total_batch_cost = material_cost + operational_cost + other_cost
+
+    # Calculate contribution percentages (based on total batch cost)
     for ing in processed_ingredients:
         ing['contribution_percent'] = calculate_contribution_percent(
             ing['line_cost'], total_batch_cost
         )
+
+    # Calculate operational and other cost contribution
+    operational_contribution = calculate_contribution_percent(operational_cost, total_batch_cost)
+    other_contribution = calculate_contribution_percent(other_cost, total_batch_cost)
 
     # Calculate HPP and selling price
     hpp_per_unit = calculate_hpp_per_unit(total_batch_cost, output_units)
@@ -157,6 +166,11 @@ def calculate_all(
 
     return {
         'ingredients': processed_ingredients,
+        'material_cost': round(material_cost, 2),
+        'operational_cost': round(operational_cost, 2),
+        'other_cost': round(other_cost, 2),
+        'operational_contribution': operational_contribution,
+        'other_contribution': other_contribution,
         'total_batch_cost': round(total_batch_cost, 2),
         'output_units': output_units,
         'target_margin_percent': target_margin_percent,

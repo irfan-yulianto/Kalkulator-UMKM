@@ -54,11 +54,19 @@ def create_excel_report(
     ws_summary['A2'] = f"Tanggal: {datetime.now().strftime('%d/%m/%Y %H:%M')}"
     ws_summary['A2'].font = Font(italic=True, size=10)
 
+    # Get cost breakdown values (with defaults for backwards compatibility)
+    material_cost = calculation_result.get('material_cost', calculation_result['total_batch_cost'])
+    operational_cost = calculation_result.get('operational_cost', 0)
+    other_cost = calculation_result.get('other_cost', 0)
+
     # Summary data
     summary_data = [
         ["", ""],
         ["RINGKASAN PERHITUNGAN", ""],
         ["Total Biaya per Batch", f"{currency_symbol} {calculation_result['total_batch_cost']:,.0f}".replace(",", ".")],
+        ["  - Biaya Bahan Baku", f"{currency_symbol} {material_cost:,.0f}".replace(",", ".")],
+        ["  - Biaya Operasional", f"{currency_symbol} {operational_cost:,.0f}".replace(",", ".")],
+        ["  - Biaya Lain-lain", f"{currency_symbol} {other_cost:,.0f}".replace(",", ".")],
         ["Jumlah Output (porsi/unit)", calculation_result['output_units']],
         ["Target Margin", f"{calculation_result['target_margin_percent']:.1f}%"],
         ["", ""],

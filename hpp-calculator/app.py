@@ -62,6 +62,13 @@ def init_session_state():
     if 'currency_symbol' not in st.session_state:
         st.session_state.currency_symbol = get_setting('currency_symbol', 'Rp')
 
+    # Biaya operasional dan lain-lain
+    if 'operational_cost' not in st.session_state:
+        st.session_state.operational_cost = 0.0
+
+    if 'other_cost' not in st.session_state:
+        st.session_state.other_cost = 0.0
+
 init_session_state()
 
 
@@ -199,6 +206,36 @@ st.session_state.ingredients_df = edited_df
 
 st.divider()
 
+# ===== BIAYA OPERASIONAL & LAIN-LAIN =====
+st.markdown("### 💼 Biaya Operasional & Lain-lain")
+st.markdown("Tambahkan biaya di luar bahan baku seperti tenaga kerja, listrik, gas, packaging, dll.")
+
+col_op1, col_op2 = st.columns(2)
+
+with col_op1:
+    operational_cost = st.number_input(
+        "Biaya Operasional per Batch",
+        min_value=0.0,
+        value=st.session_state.operational_cost,
+        step=1000.0,
+        format="%.0f",
+        help="Contoh: tenaga kerja, listrik, gas, air, sewa tempat"
+    )
+    st.session_state.operational_cost = operational_cost
+
+with col_op2:
+    other_cost = st.number_input(
+        "Biaya Lain-lain per Batch",
+        min_value=0.0,
+        value=st.session_state.other_cost,
+        step=1000.0,
+        format="%.0f",
+        help="Contoh: packaging, label, overhead, transportasi"
+    )
+    st.session_state.other_cost = other_cost
+
+st.divider()
+
 # ===== OUTPUT SECTION: Output, Margin & Harga Jual =====
 st.markdown("### 📦 Output, Margin & Harga Jual")
 
@@ -264,7 +301,9 @@ if st.button("🧮 Hitung HPP & Harga Jual", type="primary"):
             ingredients=ingredients,
             output_units=st.session_state.output_units,
             target_margin_percent=st.session_state.target_margin,
-            actual_selling_price=st.session_state.actual_price if st.session_state.actual_price > 0 else None
+            actual_selling_price=st.session_state.actual_price if st.session_state.actual_price > 0 else None,
+            operational_cost=st.session_state.operational_cost,
+            other_cost=st.session_state.other_cost
         )
         st.session_state.calculation_result = result
         st.rerun()
@@ -305,6 +344,20 @@ if st.session_state.calculation_result is not None:
             label=f"Harga jual disarankan ({result['target_margin_percent']:.0f}% margin)",
             value=format_currency(result['suggested_selling_price'], currency)
         )
+
+    # Breakdown biaya
+    if result['operational_cost'] > 0 or result['other_cost'] > 0:
+        st.markdown("**Breakdown Biaya per Batch:**")
+        col_b1, col_b2, col_b3 = st.columns(3)
+
+        with col_b1:
+            st.markdown(f"• Bahan Baku: **{format_currency(result['material_cost'], currency)}**")
+
+        with col_b2:
+            st.markdown(f"• Operasional: **{format_currency(result['operational_cost'], currency)}**")
+
+        with col_b3:
+            st.markdown(f"• Lain-lain: **{format_currency(result['other_cost'], currency)}**")
 
     st.divider()
 
