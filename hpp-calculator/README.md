@@ -74,13 +74,17 @@ Platform web-based untuk membantu UKM dan business owners menghitung **Harga Pok
 ### 1. Input Bahan
 
 Isi tabel bahan dengan:
-- **Ingredient**: Nama bahan
-- **Qty_per_batch**: Jumlah per batch produksi
-- **Unit**: Satuan (kg, liter, pcs, dll)
-- **Price_per_unit**: Harga per satuan
+- **Nama Barang**: Nama bahan
+- **Qty Bahan**: Jumlah per kemasan (misal: 250 gram/bungkus)
+- **Satuan**: Satuan bahan (gram, kg, ml, liter, pcs, dll)
+- **Qty Jumlah**: Jumlah kemasan yang dibeli (misal: beli 2 bungkus)
+- **Harga**: Harga per kemasan
+- **Subtotal**: Dihitung otomatis (Qty Jumlah × Harga)
 
-### 2. Konfigurasi Output
+### 2. Konfigurasi Output & Biaya Tambahan
 
+- **Biaya Operasional**: Biaya listrik, gas, air, dll per batch
+- **Biaya Lain-lain**: Biaya kemasan, label, transport, dll per batch
 - **Total porsi/unit**: Jumlah unit yang dihasilkan per batch
 - **Target margin (%)**: Persentase margin yang diinginkan
 - **Harga jual saat ini**: (Opsional) Untuk analisis margin aktual
@@ -88,11 +92,12 @@ Isi tabel bahan dengan:
 ### 3. Hitung HPP
 
 Klik tombol **"Hitung HPP & Harga Jual"** untuk melihat:
-- Total biaya per batch
+- Total biaya per batch (Bahan + Operasional + Lain-lain)
 - HPP per unit
 - Harga jual disarankan
-- Analisis margin
+- Analisis margin (aktual vs target)
 - Detail kontribusi per bahan
+- Top 3 kontributor biaya tertinggi
 
 ### 4. Export Hasil
 
@@ -107,21 +112,31 @@ Download laporan dalam format Excel dengan klik **"Download HPP report (Excel)"*
 
 ### Format Template
 
-| Ingredient | Qty_per_batch | Unit | Price_per_unit |
-|------------|---------------|------|----------------|
-| Ayam Karkas | 10 | kg | 40000 |
-| Tepung | 2 | kg | 20000 |
-| Minyak | 3 | liter | 15000 |
+| Nama_Barang | Qty_Bahan | Satuan | Qty_Jumlah | Harga |
+|-------------|-----------|--------|------------|-------|
+| Tepung Terigu | 250 | gram | 2 | 15000 |
+| Ayam Karkas | 1 | kg | 3 | 40000 |
+| Minyak Goreng | 1 | liter | 2 | 20000 |
+
+**Keterangan:**
+- `Qty_Bahan`: Jumlah per kemasan (misal: 250 gram/bungkus)
+- `Qty_Jumlah`: Jumlah kemasan yang dibeli
+- `Harga`: Harga per kemasan
+- **Subtotal = Qty_Jumlah × Harga** (Qty_Bahan hanya sebagai referensi)
 
 ## Formula Perhitungan
 
 ```
-Line Cost = Quantity × Price per Unit
-Total Batch Cost = Σ Line Costs
-HPP per Unit = Total Batch Cost ÷ Output Units
-Margin Amount = HPP per Unit × (Target Margin % ÷ 100)
-Selling Price = HPP per Unit + Margin Amount
-Actual Margin % = ((Selling Price - HPP) ÷ HPP) × 100
+Subtotal per Bahan   = Qty_Jumlah × Harga
+Total Biaya Bahan    = Σ Subtotal per Bahan
+Total Batch Cost     = Biaya Bahan + Biaya Operasional + Biaya Lain-lain
+
+HPP per Unit         = Total Batch Cost ÷ Output Units
+Margin Amount        = HPP per Unit × (Target Margin % ÷ 100)
+Harga Jual           = HPP per Unit + Margin Amount
+
+Margin Aktual %      = ((Harga Jual - HPP) ÷ HPP) × 100
+Gap vs Target        = Margin Aktual % - Target Margin %
 ```
 
 ## Struktur Project
