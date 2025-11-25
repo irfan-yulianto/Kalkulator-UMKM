@@ -41,10 +41,12 @@ init_db()
 def init_session_state():
     defaults = {
         'ingredients_df': pd.DataFrame({
-            'Ingredient': ['', '', '', '', ''],
-            'Qty_per_batch': [0.0, 0.0, 0.0, 0.0, 0.0],
-            'Unit': ['kg', 'kg', 'liter', 'pack', 'pack'],
-            'Price_per_unit': [0, 0, 0, 0, 0]
+            'Nama_Barang': ['', '', '', '', ''],
+            'Qty_Bahan': [0.0, 0.0, 0.0, 0.0, 0.0],
+            'Satuan': ['gram', 'kg', 'ml', 'pcs', 'pcs'],
+            'Qty_Jumlah': [0, 0, 0, 0, 0],
+            'Harga': [0, 0, 0, 0, 0],
+            'Subtotal': [0, 0, 0, 0, 0]
         }),
         'calculation_result': None,
         'output_units': 50,
@@ -120,16 +122,36 @@ with st.sidebar:
                 st.error(error)
 
         if ingredients:
-            # Convert to DataFrame
+            # Convert to DataFrame dengan struktur baru dari parse_import_file
+            # Format: nama_barang, qty_bahan, satuan, qty_jumlah, harga
             new_df = pd.DataFrame(ingredients)
-            new_df.columns = ['Ingredient', 'Qty_per_batch', 'Unit', 'Price_per_unit']
+
+            # Rename columns to match app DataFrame structure (capitalize)
+            new_df = new_df.rename(columns={
+                'nama_barang': 'Nama_Barang',
+                'qty_bahan': 'Qty_Bahan',
+                'satuan': 'Satuan',
+                'qty_jumlah': 'Qty_Jumlah',
+                'harga': 'Harga'
+            })
+
+            # Calculate subtotals: Qty_Jumlah × Harga
+            new_df['Subtotal'] = new_df.apply(
+                lambda row: round(float(row['Qty_Jumlah'] or 0) * float(row['Harga'] or 0), 0),
+                axis=1
+            )
+
+            # Reorder columns
+            new_df = new_df[['Nama_Barang', 'Qty_Bahan', 'Satuan', 'Qty_Jumlah', 'Harga', 'Subtotal']]
 
             # Add empty rows
             empty_rows = pd.DataFrame({
-                'Ingredient': [''] * 2,
-                'Qty_per_batch': [0.0] * 2,
-                'Unit': ['kg'] * 2,
-                'Price_per_unit': [0] * 2
+                'Nama_Barang': [''] * 2,
+                'Qty_Bahan': [0.0] * 2,
+                'Satuan': ['pcs'] * 2,
+                'Qty_Jumlah': [0] * 2,
+                'Harga': [0] * 2,
+                'Subtotal': [0] * 2
             })
             st.session_state.ingredients_df = pd.concat([new_df, empty_rows], ignore_index=True)
             st.success(f"✅ {len(ingredients)} bahan berhasil diimport!")
@@ -152,45 +174,120 @@ st.markdown(
 # Editable data table
 unit_options = format_unit_options()
 
-# Menggunakan key untuk auto-bind ke session state
-edited_df = st.data_editor(
+# Function untuk menghitung subtotal sederhana
+def calculate_subtotals(df):
+    """
+    Hitung subtotal untuk setiap baris.
+    Formula: Subtotal = Qty_Jumlah × Harga
+
+    Qty_Bahan dan Satuan hanya untuk referensi, tidak mempengaruhi kalkulasi subtotal.
+    """
+    df = df.copy()
+    df['Subtotal'] = df.apply(
+        lambda row: round(
+            float(row['Qty_Jumlah'] or 0) * float(row['Harga'] or 0), 0
+        ),
+        axis=1
+    )
+    return df
+
+# Callback untuk update ingredients saat data berubah
+def on_ingredients_change():
+    """Sync editor state ke ingredients_df dan hitung subtotal"""
+    if "ingredients_editor" in st.session_state:
+        editor_state = st.session_state.ingredients_editor
+        df = st.session_state.ingredients_df.copy()
+
+        # Kolom yang tidak boleh diedit manual (calculated fields)
+        readonly_cols = ['Subtotal']
+
+        # Apply edited rows
+        if "edited_rows" in editor_state:
+            for row_idx, changes in editor_state["edited_rows"].items():
+                for col, val in changes.items():
+                    if col not in readonly_cols:
+                        df.at[int(row_idx), col] = val
+
+        # Apply added rows
+        if "added_rows" in editor_state and editor_state["added_rows"]:
+            for new_row in editor_state["added_rows"]:
+                # Fill defaults for missing columns
+                complete_row = {
+                    'Nama_Barang': new_row.get('Nama_Barang', ''),
+                    'Qty_Bahan': new_row.get('Qty_Bahan', 0.0),
+                    'Satuan': new_row.get('Satuan', 'pcs'),
+                    'Qty_Jumlah': new_row.get('Qty_Jumlah', 0),
+                    'Harga': new_row.get('Harga', 0),
+                    'Subtotal': 0
+                }
+                df = pd.concat([df, pd.DataFrame([complete_row])], ignore_index=True)
+
+        # Apply deleted rows
+        if "deleted_rows" in editor_state and editor_state["deleted_rows"]:
+            df = df.drop(index=editor_state["deleted_rows"]).reset_index(drop=True)
+
+        # Recalculate subtotals: Qty_Jumlah × Harga
+        df = calculate_subtotals(df)
+        st.session_state.ingredients_df = df
+
+# Pastikan subtotal dihitung sebelum display
+st.session_state.ingredients_df = calculate_subtotals(st.session_state.ingredients_df)
+
+# Tooltip penjelasan formula
+st.caption("💡 **Subtotal** = Qty Jumlah × Harga (Qty Bahan & Satuan hanya untuk referensi)")
+
+# Data editor dengan on_change callback - kolom compact
+st.data_editor(
     st.session_state.ingredients_df,
     column_config={
-        "Ingredient": st.column_config.TextColumn(
-            "Ingredient",
-            help="Nama bahan",
+        "Nama_Barang": st.column_config.TextColumn(
+            "Nama Barang",
+            help="Nama bahan/ingredient",
             max_chars=100,
-            width="large"
+            width=150
         ),
-        "Qty_per_batch": st.column_config.NumberColumn(
-            "Qty_per_batch",
-            help="Jumlah per batch",
+        "Qty_Bahan": st.column_config.NumberColumn(
+            "Qty",
+            help="Jumlah bahan per kemasan (contoh: 250 gram/bungkus)",
             min_value=0,
-            format="%.2f",
-            width="medium"
+            format="%.1f",
+            width=70
         ),
-        "Unit": st.column_config.SelectboxColumn(
-            "Unit",
-            help="Satuan",
+        "Satuan": st.column_config.SelectboxColumn(
+            "Satuan",
+            help="Satuan ukuran bahan",
             options=unit_options,
-            width="small"
+            width=80
         ),
-        "Price_per_unit": st.column_config.NumberColumn(
-            "Price_per_unit",
-            help="Harga per satuan",
+        "Qty_Jumlah": st.column_config.NumberColumn(
+            "Jml",
+            help="Jumlah kemasan yang dibeli",
             min_value=0,
             format="%d",
-            width="medium"
+            width=60
+        ),
+        "Harga": st.column_config.NumberColumn(
+            "Harga",
+            help="Harga per kemasan (Rp)",
+            min_value=0,
+            format="%d",
+            width=90
+        ),
+        "Subtotal": st.column_config.NumberColumn(
+            "Subtotal",
+            help="Subtotal = Jml × Harga",
+            format="%d",
+            width=100,
+            disabled=True
         )
     },
+    column_order=["Nama_Barang", "Qty_Bahan", "Satuan", "Qty_Jumlah", "Harga", "Subtotal"],
     num_rows="dynamic",
     use_container_width=True,
     hide_index=True,
-    key="ingredients_editor"
+    key="ingredients_editor",
+    on_change=on_ingredients_change
 )
-
-# Update ingredients_df dari editor result
-st.session_state.ingredients_df = edited_df
 
 st.divider()
 
@@ -255,15 +352,23 @@ st.markdown("")
 
 # Calculate button
 if st.button("🧮 Hitung HPP & Harga Jual", type="primary"):
-    # Prepare ingredients data
+    # Prepare ingredients data dari session state
     ingredients = []
-    for _, row in edited_df.iterrows():
-        if row['Ingredient'] and str(row['Ingredient']).strip():
+    for _, row in st.session_state.ingredients_df.iterrows():
+        if row['Nama_Barang'] and str(row['Nama_Barang']).strip():
+            qty_bahan = float(row['Qty_Bahan']) if pd.notna(row['Qty_Bahan']) else 0
+            qty_jumlah = int(row['Qty_Jumlah']) if pd.notna(row['Qty_Jumlah']) else 0
+            harga = float(row['Harga']) if pd.notna(row['Harga']) else 0
+
+            # Total bahan = Qty_Bahan × Qty_Jumlah (untuk perhitungan HPP)
+            total_bahan = qty_bahan * qty_jumlah if qty_jumlah > 0 else qty_bahan
+
             ingredients.append({
-                'name': str(row['Ingredient']).strip(),
-                'quantity': float(row['Qty_per_batch']) if pd.notna(row['Qty_per_batch']) else 0,
-                'unit': str(row['Unit']) if pd.notna(row['Unit']) else 'unit',
-                'price_per_unit': float(row['Price_per_unit']) if pd.notna(row['Price_per_unit']) else 0
+                'name': str(row['Nama_Barang']).strip(),
+                'quantity': total_bahan,  # Total bahan yang dipakai
+                'unit': str(row['Satuan']) if pd.notna(row['Satuan']) else 'pcs',
+                # price_per_unit = Harga / Qty_Bahan untuk per satuan bahan
+                'price_per_unit': harga / qty_bahan if qty_bahan > 0 else harga
             })
 
     # Validate

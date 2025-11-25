@@ -95,11 +95,11 @@ def create_excel_report(
     ws_summary.column_dimensions['A'].width = 30
     ws_summary.column_dimensions['B'].width = 25
 
-    # ===== Sheet 2: Ingredients =====
-    ws_ingredients = wb.create_sheet("Ingredients")
+    # ===== Sheet 2: Bahan (Ingredients) =====
+    ws_ingredients = wb.create_sheet("Bahan")
 
-    # Headers
-    headers = ["Ingredient", "Qty_per_batch", "Unit", "Price_per_unit", "Line_cost", "Share_pct"]
+    # Headers - Indonesian names
+    headers = ["Nama_Barang", "Qty_Total", "Satuan", "Harga_per_Unit", "Subtotal", "Kontribusi_%"]
     for col_idx, header in enumerate(headers, start=1):
         cell = ws_ingredients.cell(row=1, column=col_idx, value=header)
         cell.font = header_font
@@ -117,18 +117,18 @@ def create_excel_report(
         ws_ingredients.cell(row=row_idx, column=6, value=ing['contribution_percent']).border = thin_border
 
     # Adjust column widths
-    ws_ingredients.column_dimensions['A'].width = 25
-    ws_ingredients.column_dimensions['B'].width = 15
+    ws_ingredients.column_dimensions['A'].width = 20
+    ws_ingredients.column_dimensions['B'].width = 12
     ws_ingredients.column_dimensions['C'].width = 10
     ws_ingredients.column_dimensions['D'].width = 15
     ws_ingredients.column_dimensions['E'].width = 15
     ws_ingredients.column_dimensions['F'].width = 12
 
-    # ===== Sheet 3: Cost Breakdown =====
-    ws_cost = wb.create_sheet("Cost_breakdown")
+    # ===== Sheet 3: Analisis Biaya (Cost Breakdown) =====
+    ws_cost = wb.create_sheet("Analisis_Biaya")
 
-    # Headers
-    cost_headers = ["Ingredient", "Qty_per_batch", "Unit", "Price_per_unit", "Line_cost", "Share_pct"]
+    # Headers - Indonesian names (sorted by contribution)
+    cost_headers = ["Nama_Barang", "Qty_Total", "Satuan", "Harga_per_Unit", "Subtotal", "Kontribusi_%"]
     for col_idx, header in enumerate(cost_headers, start=1):
         cell = ws_cost.cell(row=1, column=col_idx, value=header)
         cell.font = header_font
@@ -151,7 +151,7 @@ def create_excel_report(
         ws_cost.cell(row=row_idx, column=6, value=ing['contribution_percent']).border = thin_border
 
     # Adjust column widths
-    for col, width in [('A', 25), ('B', 15), ('C', 10), ('D', 15), ('E', 15), ('F', 12)]:
+    for col, width in [('A', 20), ('B', 12), ('C', 10), ('D', 15), ('E', 15), ('F', 12)]:
         ws_cost.column_dimensions[col].width = width
 
     # Save to bytes
@@ -166,10 +166,11 @@ def create_import_template() -> bytes:
     Create Excel template for batch import.
 
     Columns:
-    - Ingredient (text)
-    - Qty_per_batch (number)
-    - Unit (text)
-    - Price_per_unit (number)
+    - Nama_Barang (text): Nama bahan
+    - Qty_Bahan (number): Jumlah per kemasan (misal: 250 gram)
+    - Satuan (text): Satuan bahan (gram, kg, ml, pcs, dll)
+    - Qty_Jumlah (number): Jumlah kemasan yang dibeli
+    - Harga (number): Harga per kemasan
 
     Returns:
         Excel file as bytes
@@ -189,8 +190,8 @@ def create_import_template() -> bytes:
         bottom=Side(style='thin')
     )
 
-    # Headers
-    headers = ["Ingredient", "Qty_per_batch", "Unit", "Price_per_unit"]
+    # Headers - new structure
+    headers = ["Nama_Barang", "Qty_Bahan", "Satuan", "Qty_Jumlah", "Harga"]
     for col_idx, header in enumerate(headers, start=1):
         cell = ws.cell(row=1, column=col_idx, value=header)
         cell.font = header_font
@@ -198,14 +199,14 @@ def create_import_template() -> bytes:
         cell.border = thin_border
         cell.alignment = Alignment(horizontal='center')
 
-    # Example data
+    # Example data - Qty_Bahan (per kemasan), Satuan, Qty_Jumlah (jumlah kemasan), Harga (per kemasan)
     examples = [
-        ["Ayam Karkas", 10, "kg", 40000],
-        ["Tepung Crispy", 2, "kg", 20000],
-        ["Bumbu Marinasi", 1, "kg", 30000],
-        ["Minyak Goreng", 3, "liter", 20000],
-        ["Tenaga Kerja", 1, "pack", 20000],
-        ["Overhead", 1, "pack", 10000],
+        ["Tepung Terigu", 250, "gram", 2, 15000],       # 250g x 2 bungkus = Rp 30.000
+        ["Ayam Karkas", 1, "kg", 3, 40000],             # 1kg x 3 = Rp 120.000
+        ["Minyak Goreng", 1, "liter", 2, 20000],        # 1L x 2 = Rp 40.000
+        ["Bumbu Marinasi", 100, "gram", 1, 25000],      # 100g x 1 = Rp 25.000
+        ["Kemasan Box", 1, "pcs", 50, 1500],            # 1 pcs x 50 = Rp 75.000
+        ["Gas LPG", 3, "kg", 1, 22000],                 # 3kg x 1 = Rp 22.000
     ]
 
     for row_idx, row_data in enumerate(examples, start=2):
@@ -216,7 +217,7 @@ def create_import_template() -> bytes:
 
     # Add empty rows for user input
     for row_idx in range(8, 20):
-        for col_idx in range(1, 5):
+        for col_idx in range(1, 6):
             ws.cell(row=row_idx, column=col_idx).border = thin_border
 
     # Instructions sheet
@@ -226,10 +227,19 @@ def create_import_template() -> bytes:
         [""],
         ["1. Isi data bahan pada sheet 'Template'"],
         ["2. Kolom yang wajib diisi:"],
-        ["   - Ingredient: Nama bahan (max 100 karakter)"],
-        ["   - Qty_per_batch: Jumlah per batch (angka > 0)"],
-        ["   - Unit: Satuan (kg, liter, gram, pcs, pack, dll)"],
-        ["   - Price_per_unit: Harga per satuan (angka > 0)"],
+        ["   - Nama_Barang: Nama bahan (max 100 karakter)"],
+        ["   - Qty_Bahan: Jumlah per kemasan (misal: tepung 250 gram/bungkus)"],
+        ["   - Satuan: Satuan bahan (gram, kg, ml, liter, pcs, dll)"],
+        ["   - Qty_Jumlah: Jumlah kemasan yang dibeli (misal: beli 2 bungkus)"],
+        ["   - Harga: Harga per kemasan (angka > 0)"],
+        [""],
+        ["RUMUS PERHITUNGAN:"],
+        ["   Subtotal = Qty_Jumlah x Harga"],
+        ["   (Qty_Bahan dan Satuan hanya sebagai referensi)"],
+        [""],
+        ["CONTOH:"],
+        ["   Tepung 250 gram/bungkus, beli 2 bungkus @ Rp 15.000"],
+        ["   Subtotal = 2 x 15.000 = Rp 30.000"],
         [""],
         ["3. Hapus contoh data (baris kuning) sebelum mengisi data Anda"],
         ["4. Simpan file dan upload ke aplikasi"],
@@ -244,10 +254,11 @@ def create_import_template() -> bytes:
             cell.font = Font(bold=True, size=12)
 
     # Adjust column widths
-    ws.column_dimensions['A'].width = 25
-    ws.column_dimensions['B'].width = 15
-    ws.column_dimensions['C'].width = 12
-    ws.column_dimensions['D'].width = 15
+    ws.column_dimensions['A'].width = 20
+    ws.column_dimensions['B'].width = 12
+    ws.column_dimensions['C'].width = 10
+    ws.column_dimensions['D'].width = 12
+    ws.column_dimensions['E'].width = 12
     ws_info.column_dimensions['A'].width = 70
 
     # Save to bytes
@@ -259,7 +270,14 @@ def create_import_template() -> bytes:
 
 def parse_import_file(file_content: bytes, filename: str) -> Tuple[List[Dict], List[str]]:
     """
-    Parse uploaded Excel/CSV file.
+    Parse uploaded Excel/CSV file with new column structure.
+
+    Expected columns:
+    - Nama_Barang: Nama bahan
+    - Qty_Bahan: Jumlah per kemasan (misal: 250 gram)
+    - Satuan: Satuan bahan
+    - Qty_Jumlah: Jumlah kemasan yang dibeli
+    - Harga: Harga per kemasan
 
     Args:
         file_content: File content as bytes
@@ -281,12 +299,13 @@ def parse_import_file(file_content: bytes, filename: str) -> Tuple[List[Dict], L
         # Normalize column names
         df.columns = df.columns.str.strip().str.lower()
 
-        # Map common column name variations
+        # Map common column name variations - new structure
         column_mapping = {
-            'ingredient': ['ingredient', 'bahan', 'nama', 'nama_bahan', 'name'],
-            'qty_per_batch': ['qty_per_batch', 'quantity', 'qty', 'jumlah', 'kuantitas'],
-            'unit': ['unit', 'satuan', 'uom'],
-            'price_per_unit': ['price_per_unit', 'price', 'harga', 'harga_per_unit', 'harga_satuan']
+            'nama_barang': ['nama_barang', 'ingredient', 'bahan', 'nama', 'nama_bahan', 'name'],
+            'qty_bahan': ['qty_bahan', 'qty_per_batch', 'quantity', 'qty', 'kuantitas'],
+            'satuan': ['satuan', 'unit', 'uom'],
+            'qty_jumlah': ['qty_jumlah', 'jumlah', 'jml', 'amount', 'qty_amount'],
+            'harga': ['harga', 'price', 'price_per_unit', 'harga_per_unit', 'harga_satuan']
         }
 
         # Find matching columns
@@ -298,7 +317,7 @@ def parse_import_file(file_content: bytes, filename: str) -> Tuple[List[Dict], L
                     break
 
         # Check required columns
-        required = ['ingredient', 'qty_per_batch', 'unit', 'price_per_unit']
+        required = ['nama_barang', 'qty_bahan', 'satuan', 'qty_jumlah', 'harga']
         missing = [col for col in required if col not in final_columns]
 
         if missing:
@@ -312,32 +331,42 @@ def parse_import_file(file_content: bytes, filename: str) -> Tuple[List[Dict], L
         for idx, row in df.iterrows():
             row_num = idx + 2  # Account for header row and 0-index
 
-            ingredient_name = str(row.get('ingredient', '')).strip()
+            ingredient_name = str(row.get('nama_barang', '')).strip()
 
             # Skip empty rows
             if not ingredient_name or ingredient_name.lower() == 'nan':
                 continue
 
-            # Validate and parse quantity
+            # Validate and parse qty_bahan (quantity per package)
             try:
-                qty = float(row.get('qty_per_batch', 0))
-                if qty <= 0:
-                    errors.append(f"Baris {row_num}: Kuantitas harus > 0")
+                qty_bahan = float(row.get('qty_bahan', 0))
+                if qty_bahan <= 0:
+                    errors.append(f"Baris {row_num}: Qty Bahan harus > 0")
                     continue
             except (ValueError, TypeError):
-                errors.append(f"Baris {row_num}: Kuantitas tidak valid")
+                errors.append(f"Baris {row_num}: Qty Bahan tidak valid")
                 continue
 
             # Validate unit
-            unit = str(row.get('unit', '')).strip()
-            if not unit or unit.lower() == 'nan':
+            satuan = str(row.get('satuan', '')).strip()
+            if not satuan or satuan.lower() == 'nan':
                 errors.append(f"Baris {row_num}: Satuan harus diisi")
                 continue
 
-            # Validate and parse price
+            # Validate and parse qty_jumlah (number of packages)
             try:
-                price = float(row.get('price_per_unit', 0))
-                if price <= 0:
+                qty_jumlah = int(float(row.get('qty_jumlah', 0)))
+                if qty_jumlah <= 0:
+                    errors.append(f"Baris {row_num}: Qty Jumlah harus > 0")
+                    continue
+            except (ValueError, TypeError):
+                errors.append(f"Baris {row_num}: Qty Jumlah tidak valid")
+                continue
+
+            # Validate and parse harga (price per package)
+            try:
+                harga = float(row.get('harga', 0))
+                if harga <= 0:
                     errors.append(f"Baris {row_num}: Harga harus > 0")
                     continue
             except (ValueError, TypeError):
@@ -345,10 +374,11 @@ def parse_import_file(file_content: bytes, filename: str) -> Tuple[List[Dict], L
                 continue
 
             ingredients.append({
-                'name': ingredient_name,
-                'quantity': qty,
-                'unit': unit,
-                'price_per_unit': price
+                'nama_barang': ingredient_name,
+                'qty_bahan': qty_bahan,
+                'satuan': satuan,
+                'qty_jumlah': qty_jumlah,
+                'harga': harga
             })
 
         if not ingredients and not errors:
