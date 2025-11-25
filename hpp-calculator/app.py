@@ -37,37 +37,27 @@ load_css()
 # Initialize database
 init_db()
 
-# Initialize session state
+# Initialize session state with default values
 def init_session_state():
-    if 'ingredients_df' not in st.session_state:
-        st.session_state.ingredients_df = pd.DataFrame({
+    defaults = {
+        'ingredients_df': pd.DataFrame({
             'Ingredient': ['', '', '', '', ''],
             'Qty_per_batch': [0.0, 0.0, 0.0, 0.0, 0.0],
             'Unit': ['kg', 'kg', 'liter', 'pack', 'pack'],
             'Price_per_unit': [0, 0, 0, 0, 0]
-        })
+        }),
+        'calculation_result': None,
+        'output_units': 50,
+        'target_margin': float(get_setting('default_margin', '40')),
+        'actual_price': 0.0,
+        'currency_symbol': get_setting('currency_symbol', 'Rp'),
+        'operational_cost': 0.0,
+        'other_cost': 0.0,
+    }
 
-    if 'calculation_result' not in st.session_state:
-        st.session_state.calculation_result = None
-
-    if 'output_units' not in st.session_state:
-        st.session_state.output_units = 50
-
-    if 'target_margin' not in st.session_state:
-        st.session_state.target_margin = float(get_setting('default_margin', '40'))
-
-    if 'actual_price' not in st.session_state:
-        st.session_state.actual_price = 0.0
-
-    if 'currency_symbol' not in st.session_state:
-        st.session_state.currency_symbol = get_setting('currency_symbol', 'Rp')
-
-    # Biaya operasional dan lain-lain
-    if 'operational_cost' not in st.session_state:
-        st.session_state.operational_cost = 0.0
-
-    if 'other_cost' not in st.session_state:
-        st.session_state.other_cost = 0.0
+    for key, default_value in defaults.items():
+        if key not in st.session_state:
+            st.session_state[key] = default_value
 
 init_session_state()
 
@@ -76,24 +66,20 @@ init_session_state()
 with st.sidebar:
     st.markdown("### ⚙️ Settings")
 
-    # Currency symbol
-    currency_input = st.text_input(
+    # Currency symbol - menggunakan key untuk auto-bind session state
+    st.text_input(
         "Currency symbol",
-        value=st.session_state.currency_symbol,
-        key="currency_input"
+        key="currency_symbol"
     )
-    if currency_input != st.session_state.currency_symbol:
-        st.session_state.currency_symbol = currency_input
 
-    # Target margin (default)
+    # Target margin (default) - menggunakan key untuk auto-bind session state
     st.number_input(
         "Target margin default (%)",
         min_value=0.0,
         max_value=100.0,
-        value=st.session_state.target_margin,
         step=1.0,
         format="%.2f",
-        key="sidebar_margin",
+        key="target_margin",
         help="Margin default untuk perhitungan baru"
     )
 
@@ -166,6 +152,7 @@ st.markdown(
 # Editable data table
 unit_options = format_unit_options()
 
+# Menggunakan key untuk auto-bind ke session state
 edited_df = st.data_editor(
     st.session_state.ingredients_df,
     column_config={
@@ -198,10 +185,11 @@ edited_df = st.data_editor(
     },
     num_rows="dynamic",
     use_container_width=True,
-    hide_index=True
+    hide_index=True,
+    key="ingredients_editor"
 )
 
-# Update session state with edited data
+# Update ingredients_df dari editor result
 st.session_state.ingredients_df = edited_df
 
 st.divider()
@@ -213,26 +201,24 @@ st.markdown("Tambahkan biaya di luar bahan baku seperti tenaga kerja, listrik, g
 col_op1, col_op2 = st.columns(2)
 
 with col_op1:
-    operational_cost = st.number_input(
+    st.number_input(
         "Biaya Operasional per Batch",
         min_value=0.0,
-        value=st.session_state.operational_cost,
         step=1000.0,
         format="%.0f",
-        help="Contoh: tenaga kerja, listrik, gas, air, sewa tempat"
+        help="Contoh: tenaga kerja, listrik, gas, air, sewa tempat",
+        key="operational_cost"
     )
-    st.session_state.operational_cost = operational_cost
 
 with col_op2:
-    other_cost = st.number_input(
+    st.number_input(
         "Biaya Lain-lain per Batch",
         min_value=0.0,
-        value=st.session_state.other_cost,
         step=1000.0,
         format="%.0f",
-        help="Contoh: packaging, label, overhead, transportasi"
+        help="Contoh: packaging, label, overhead, transportasi",
+        key="other_cost"
     )
-    st.session_state.other_cost = other_cost
 
 st.divider()
 
@@ -242,37 +228,28 @@ st.markdown("### 📦 Output, Margin & Harga Jual")
 col1, col2, col3 = st.columns(3)
 
 with col1:
-    output_units = st.number_input(
+    st.number_input(
         "Total porsi / unit yang dihasilkan per batch",
         min_value=1,
-        value=st.session_state.output_units,
         step=1,
-        help="Jumlah unit yang dihasilkan dari 1 batch produksi"
+        help="Jumlah unit yang dihasilkan dari 1 batch produksi",
+        key="output_units"
     )
-    st.session_state.output_units = output_units
 
 with col2:
-    target_margin = st.number_input(
-        "Target margin (%) untuk perhitungan ini",
-        min_value=0.0,
-        max_value=100.0,
-        value=st.session_state.target_margin,
-        step=1.0,
-        format="%.2f",
-        help="Persentase margin yang diinginkan"
-    )
-    st.session_state.target_margin = target_margin
+    # Target margin sudah di-bind via sidebar, tampilkan saja info
+    st.markdown(f"**Target margin: {st.session_state.target_margin:.1f}%**")
+    st.caption("Ubah di sidebar Settings")
 
 with col3:
-    actual_price = st.number_input(
+    st.number_input(
         "Harga jual saat ini per porsi (opsional)",
         min_value=0.0,
-        value=st.session_state.actual_price,
         step=1000.0,
         format="%.0f",
-        help="Kosongkan jika belum ada harga jual"
+        help="Kosongkan jika belum ada harga jual",
+        key="actual_price"
     )
-    st.session_state.actual_price = actual_price
 
 st.markdown("")
 
