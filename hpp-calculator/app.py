@@ -15,9 +15,14 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from utils.calculations import calculate_all, get_top_contributors, validate_ingredients
 from utils.formatters import format_currency, format_percentage, format_gap, format_unit_options
 from utils.export import create_excel_report, create_import_template, parse_import_file, create_distributor_template, create_service_template
+from utils.pdf_export import create_pdf_report, create_multi_product_pdf_report
 from utils.calc_distributor import calculate_distributor_hpp, validate_distributor_inputs
 from utils.calc_service import calculate_service_hpp, validate_service_inputs
-from database.db import init_db, get_setting, set_setting
+from database.db import (
+    init_db, get_setting, set_setting, 
+    save_product_template, get_product_templates, delete_product_template, get_product_template_by_id,
+    save_calculation_history, get_calculation_history, get_hpp_trend, get_unique_product_names
+)
 
 # Page config
 st.set_page_config(
@@ -88,6 +93,59 @@ with st.sidebar:
     )
 
     st.caption("Margin ini digunakan untuk menghitung harga jual yang disarankan.")
+
+    st.divider()
+
+    # ===== PRODUK TERSIMPAN (Save/Load) =====
+    st.markdown("### 📁 Produk Tersimpan")
+
+    # Get saved templates
+    saved_templates = get_product_templates()
+
+    if saved_templates:
+        template_options = {t['name']: t['id'] for t in saved_templates}
+        selected_template_name = st.selectbox(
+            "Pilih produk tersimpan",
+            options=["-- Pilih --"] + list(template_options.keys()),
+            key="selected_template"
+        )
+
+        col_load, col_delete = st.columns(2)
+
+        with col_load:
+            if st.button("📂 Load", use_container_width=True, disabled=(selected_template_name == "-- Pilih --")):
+                if selected_template_name != "-- Pilih --":
+                    template_id = template_options[selected_template_name]
+                    template = get_product_template_by_id(template_id)
+                    if template:
+                        import json
+                        try:
+                            loaded_data = json.loads(template['data_json'])
+                            mode = template.get('mode', 'produksi')
+
+                            if mode == 'produksi':
+                                # Load to ingredients_df
+                                st.session_state.ingredients_df = pd.DataFrame(loaded_data)
+                                st.session_state.output_units = template.get('output_units', 50)
+                            elif mode == 'distributor':
+                                st.session_state.distributor_df = pd.DataFrame(loaded_data)
+                            elif mode == 'service':
+                                st.session_state.service_df = pd.DataFrame(loaded_data)
+
+                            st.success(f"✅ '{selected_template_name}' loaded!")
+                            st.rerun()
+                        except Exception as e:
+                            st.error(f"Error loading: {e}")
+
+        with col_delete:
+            if st.button("🗑️ Hapus", use_container_width=True, disabled=(selected_template_name == "-- Pilih --")):
+                if selected_template_name != "-- Pilih --":
+                    template_id = template_options[selected_template_name]
+                    if delete_product_template(template_id):
+                        st.success(f"✅ '{selected_template_name}' dihapus!")
+                        st.rerun()
+    else:
+        st.caption("Belum ada produk tersimpan.")
 
     st.divider()
 
@@ -513,6 +571,98 @@ if calc_mode == "🍳 Produksi (F&B)":
 
         st.divider()
 
+        # ===== Break-Even Analysis =====
+        st.markdown("### 📊 Break-Even Analysis")
+        
+        # Calculate break-even
+        fixed_costs = result.get('operational_cost', 0) + result.get('other_cost', 0)
+        variable_cost_per_unit = result.get('material_cost', result['total_batch_cost']) / result['output_units']
+        selling_price = result['actual_selling_price']
+        
+        if selling_price > variable_cost_per_unit:
+            contribution_margin = selling_price - variable_cost_per_unit
+            breakeven_units = int(fixed_costs / contribution_margin) if fixed_costs > 0 else 0
+            
+            col_be1, col_be2, col_be3 = st.columns(3)
+            with col_be1:
+                st.metric("Break-Even Point", f"{breakeven_units} unit")
+            with col_be2:
+                st.metric("Contribution Margin", format_currency(contribution_margin, currency))
+            with col_be3:
+                profit_at_output = (selling_price - result['hpp_per_unit']) * result['output_units']
+                st.metric("Profit per Batch", format_currency(profit_at_output, currency))
+            
+            # Visual progress
+            if breakeven_units > 0:
+                progress = min(result['output_units'] / breakeven_units, 1.0) if breakeven_units > 0 else 1.0
+                st.progress(progress, text=f"Output: {result['output_units']} / BEP: {breakeven_units} unit")
+        else:
+            st.warning("⚠️ Harga jual lebih rendah dari biaya variabel per unit!")
+
+        st.divider()
+
+        # ===== What-If Analysis =====
+        with st.expander("🔮 What-If Analysis (Simulasi)", expanded=False):
+            st.markdown("Simulasikan dampak perubahan biaya terhadap HPP dan harga jual.")
+            
+            col_w1, col_w2 = st.columns(2)
+            
+            with col_w1:
+                cost_change = st.slider(
+                    "Perubahan Biaya Bahan (%)",
+                    min_value=-50,
+                    max_value=100,
+                    value=0,
+                    step=5,
+                    key="whatif_cost_change"
+                )
+            
+            with col_w2:
+                margin_change = st.slider(
+                    "Target Margin Baru (%)",
+                    min_value=5.0,
+                    max_value=80.0,
+                    value=float(result['target_margin_percent']),
+                    step=5.0,
+                    key="whatif_margin"
+                )
+            
+            # Calculate what-if scenario
+            new_batch_cost = result['total_batch_cost'] * (1 + cost_change / 100)
+            new_hpp = new_batch_cost / result['output_units']
+            new_selling_price = new_hpp / (1 - margin_change / 100)
+            
+            col_r1, col_r2, col_r3 = st.columns(3)
+            
+            with col_r1:
+                hpp_diff = new_hpp - result['hpp_per_unit']
+                st.metric(
+                    "HPP Baru",
+                    format_currency(new_hpp, currency),
+                    delta=f"{hpp_diff:+,.0f}".replace(",", "."),
+                    delta_color="inverse"
+                )
+            
+            with col_r2:
+                price_diff = new_selling_price - result['suggested_selling_price']
+                st.metric(
+                    "Harga Jual Baru",
+                    format_currency(new_selling_price, currency),
+                    delta=f"{price_diff:+,.0f}".replace(",", ".")
+                )
+            
+            with col_r3:
+                new_profit = new_selling_price - new_hpp
+                old_profit = result['suggested_selling_price'] - result['hpp_per_unit']
+                profit_diff = new_profit - old_profit
+                st.metric(
+                    "Profit per Unit",
+                    format_currency(new_profit, currency),
+                    delta=f"{profit_diff:+,.0f}".replace(",", ".")
+                )
+
+        st.divider()
+
         # ===== Detail Perhitungan per Bahan =====
         st.markdown("### 🔍 Detail Perhitungan per Bahan")
 
@@ -547,7 +697,7 @@ if calc_mode == "🍳 Produksi (F&B)":
         st.divider()
 
         # ===== Export ke Excel =====
-        st.markdown("### 📥 Export ke Excel")
+        st.markdown("### 📥 Export")
 
         excel_bytes = create_excel_report(
             calculation_result=result,
@@ -555,12 +705,62 @@ if calc_mode == "🍳 Produksi (F&B)":
             currency_symbol=currency
         )
 
-        st.download_button(
-            label="📋 Download HPP report (Excel)",
-            data=excel_bytes,
-            file_name=f"hpp_calculation_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-        )
+        col_exp1, col_exp2 = st.columns(2)
+        
+        with col_exp1:
+            st.download_button(
+                label="📋 Download Excel",
+                data=excel_bytes,
+                file_name=f"hpp_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                use_container_width=True
+            )
+        
+        with col_exp2:
+            pdf_bytes = create_pdf_report(
+                calculation_result=result,
+                product_name="Produk",
+                currency_symbol=currency,
+                mode="produksi"
+            )
+            if pdf_bytes:
+                st.download_button(
+                    label="📄 Download PDF",
+                    data=pdf_bytes,
+                    file_name=f"hpp_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf",
+                    mime="application/pdf",
+                    use_container_width=True
+                )
+
+        st.divider()
+
+        # ===== Simpan Produk =====
+        st.markdown("### 💾 Simpan Produk")
+        save_name = st.text_input("Nama produk untuk disimpan", placeholder="Contoh: Nasi Goreng Spesial", key="save_produksi_name")
+        
+        if st.button("💾 Simpan Produk", type="primary", disabled=not save_name):
+            import json
+            data_to_save = st.session_state.ingredients_df.to_dict('records')
+            template_id = save_product_template(
+                name=save_name,
+                mode="produksi",
+                data_json=json.dumps(data_to_save),
+                output_units=st.session_state.output_units,
+                target_margin=st.session_state.target_margin
+            )
+            # Also save to calculation history
+            save_calculation_history(
+                name=save_name,
+                mode="produksi",
+                hpp_per_unit=result['hpp_per_unit'],
+                suggested_price=result['suggested_selling_price'],
+                total_cost=result['total_batch_cost'],
+                output_units=result['output_units'],
+                margin_percent=result['target_margin_percent'],
+                data_json=json.dumps(data_to_save)
+            )
+            st.success(f"✅ Produk '{save_name}' berhasil disimpan!")
+            st.rerun()
 
 # ===== MODE: DISTRIBUTOR/RESELLER =====
 elif calc_mode == "📦 Distributor/Reseller":
@@ -673,6 +873,37 @@ elif calc_mode == "📦 Distributor/Reseller":
             st.metric("Total Investasi", format_currency(total_investment, currency))
         with col_s2:
             st.metric("Total Potensi Profit", format_currency(total_potential_profit, currency))
+
+        st.divider()
+
+        # ===== Simpan Produk Distributor =====
+        st.markdown("### 💾 Simpan Data")
+        save_name = st.text_input("Nama untuk disimpan", placeholder="Contoh: Stok Januari 2026", key="save_distributor_name")
+        
+        if st.button("💾 Simpan", type="primary", disabled=not save_name, key="save_dist_btn"):
+            import json
+            data_to_save = st.session_state.distributor_df.to_dict('records')
+            save_product_template(
+                name=save_name,
+                mode="distributor",
+                data_json=json.dumps(data_to_save),
+                output_units=1,
+                target_margin=st.session_state.target_margin
+            )
+            # Save to history
+            avg_hpp = sum(r['hpp_per_unit'] for r in results) / len(results)
+            save_calculation_history(
+                name=save_name,
+                mode="distributor",
+                hpp_per_unit=avg_hpp,
+                suggested_price=sum(r['suggested_selling_price'] for r in results) / len(results),
+                total_cost=total_investment,
+                output_units=len(results),
+                margin_percent=st.session_state.target_margin,
+                data_json=json.dumps(data_to_save)
+            )
+            st.success(f"✅ '{save_name}' berhasil disimpan!")
+            st.rerun()
 
 # ===== MODE: JASA/SERVICE =====
 elif calc_mode == "💼 Jasa/Service":
@@ -787,6 +1018,36 @@ elif calc_mode == "💼 Jasa/Service":
             st.metric("Rata-rata Profit", format_currency(avg_profit, currency))
         with col_s3:
             st.metric("Rata-rata Profit/Jam", format_currency(avg_hourly, currency))
+
+        st.divider()
+
+        # ===== Simpan Layanan =====
+        st.markdown("### 💾 Simpan Data")
+        save_name = st.text_input("Nama untuk disimpan", placeholder="Contoh: Daftar Layanan Salon", key="save_service_name")
+        
+        if st.button("💾 Simpan", type="primary", disabled=not save_name, key="save_svc_btn"):
+            import json
+            data_to_save = st.session_state.service_df.to_dict('records')
+            save_product_template(
+                name=save_name,
+                mode="service",
+                data_json=json.dumps(data_to_save),
+                output_units=len(results),
+                target_margin=st.session_state.target_margin
+            )
+            # Save to history
+            save_calculation_history(
+                name=save_name,
+                mode="service",
+                hpp_per_unit=avg_hpp,
+                suggested_price=sum(r['suggested_selling_price'] for r in results) / len(results),
+                total_cost=sum(r['hpp_per_service'] for r in results),
+                output_units=len(results),
+                margin_percent=st.session_state.target_margin,
+                data_json=json.dumps(data_to_save)
+            )
+            st.success(f"✅ '{save_name}' berhasil disimpan!")
+            st.rerun()
 
 # Footer
 st.divider()
