@@ -5,6 +5,7 @@
 
 /* ===== CSS Variables (shadcn/ui inspired) ===== */
 :root {
+    /* Core Colors */
     --background: #ffffff;
     --foreground: #0f172a;
     --card: #ffffff;
@@ -20,9 +21,23 @@
     --input: #e2e8f0;
     --ring: #2563eb;
     --radius: 0.5rem;
-    --success: #16a34a;
-    --warning: #ca8a04;
-    --destructive: #dc2626;
+
+    /* Semantic Status Colors */
+    --success-bg: rgba(22, 163, 74, 0.1);
+    --success-border: rgba(22, 163, 74, 0.2);
+    --success-text: #15803d;
+
+    --warning-bg: rgba(202, 138, 4, 0.1);
+    --warning-border: rgba(202, 138, 4, 0.2);
+    --warning-text: #a16207;
+
+    --error-bg: rgba(220, 38, 38, 0.1);
+    --error-border: rgba(220, 38, 38, 0.2);
+    --error-text: #b91c1c;
+
+    --info-bg: rgba(59, 130, 246, 0.1);
+    --info-border: rgba(59, 130, 246, 0.2);
+    --info-text: #1d4ed8;
 }
 
 /* ===== Global Styles ===== */
@@ -32,8 +47,13 @@
 }
 
 /* Hide Streamlit branding but keep sidebar toggle */
-#MainMenu {visibility: hidden;}
-footer {visibility: hidden;}
+#MainMenu {
+    visibility: hidden;
+}
+
+footer {
+    visibility: hidden;
+}
 
 /* Keep the sidebar collapse button visible */
 [data-testid="stSidebarCollapseButton"] {
@@ -60,8 +80,8 @@ footer {visibility: hidden;}
     border: 1px solid var(--border) !important;
     border-radius: var(--radius) !important;
     padding: 0.5rem !important;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1) !important;
-    transition: all 0.15s ease !important;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
+    transition: all 0.2s ease-in-out !important;
 }
 
 [data-testid="stSidebarCollapseButton"] button:hover,
@@ -84,14 +104,16 @@ h1 {
     margin-bottom: 0.5rem !important;
 }
 
-h2, h3 {
+h2,
+h3 {
     font-size: 1.25rem !important;
     font-weight: 600 !important;
     color: var(--foreground) !important;
     margin-top: 0 !important;
 }
 
-p, .stMarkdown p {
+p,
+.stMarkdown p {
     color: var(--foreground);
     line-height: 1.6;
 }
@@ -116,7 +138,7 @@ p, .stMarkdown p {
 }
 
 /* ===== Buttons ===== */
-.stButton > button {
+.stButton>button {
     background-color: var(--primary) !important;
     color: var(--primary-foreground) !important;
     border: none !important;
@@ -124,49 +146,56 @@ p, .stMarkdown p {
     padding: 0.5rem 1rem !important;
     font-weight: 500 !important;
     font-size: 0.875rem !important;
-    transition: all 0.15s ease !important;
-    box-shadow: 0 1px 2px rgba(0,0,0,0.05) !important;
+    transition: all 0.2s ease-in-out !important;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05) !important;
 }
 
-.stButton > button:hover {
+.stButton>button p {
+    color: var(--primary-foreground) !important;
+}
+
+.stButton>button:hover {
     background-color: var(--primary-hover) !important;
-    box-shadow: 0 4px 6px rgba(0,0,0,0.1) !important;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1) !important;
+    transform: translateY(-1px);
 }
 
-.stButton > button:active {
+.stButton>button:active {
     transform: scale(0.98);
 }
 
 /* Secondary/Download buttons */
-.stDownloadButton > button {
+.stDownloadButton>button {
     background-color: var(--secondary) !important;
     color: var(--secondary-foreground) !important;
     border: 1px solid var(--border) !important;
     border-radius: var(--radius) !important;
     font-weight: 500 !important;
     font-size: 0.875rem !important;
-    transition: all 0.15s ease !important;
+    transition: all 0.2s ease-in-out !important;
 }
 
-.stDownloadButton > button:hover {
+.stDownloadButton>button:hover {
     background-color: var(--muted) !important;
     border-color: var(--ring) !important;
+    transform: translateY(-1px);
 }
 
 /* ===== Inputs ===== */
-.stTextInput > div > div > input,
-.stNumberInput > div > div > input {
+.stTextInput>div>div>input,
+.stNumberInput>div>div>input {
     border: 1px solid var(--input) !important;
     border-radius: var(--radius) !important;
     padding: 0.5rem 0.75rem !important;
     font-size: 0.875rem !important;
-    transition: all 0.15s ease !important;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease !important;
 }
 
-.stTextInput > div > div > input:focus,
-.stNumberInput > div > div > input:focus {
-    border-color: var(--ring) !important;
-    box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.1) !important;
+.stTextInput>div>div>input:focus,
+.stNumberInput>div>div>input:focus {
+    border-color: var(--primary) !important;
+    box-shadow: none !important;
+    outline: none !important;
 }
 
 /* Number input stepper buttons */
@@ -174,6 +203,7 @@ p, .stMarkdown p {
     background-color: var(--muted) !important;
     border: none !important;
     color: var(--muted-foreground) !important;
+    transition: background-color 0.2s ease-in-out !important;
 }
 
 .stNumberInput button:hover {
@@ -195,6 +225,12 @@ p, .stMarkdown p {
     border: 1px solid var(--border);
     border-radius: var(--radius);
     padding: 1rem 1.25rem;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+[data-testid="stMetric"]:hover {
+    border-color: var(--ring);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
 }
 
 [data-testid="stMetric"] label {
@@ -210,43 +246,43 @@ p, .stMarkdown p {
 }
 
 /* ===== Alerts ===== */
-.stAlert > div {
+.stAlert>div {
     border-radius: var(--radius) !important;
     padding: 0.75rem 1rem !important;
     font-size: 0.875rem !important;
 }
 
-/* Info alert */
+/* Info alert container */
 [data-testid="stAlert"]:has([data-baseweb="notification"]) {
     border-radius: var(--radius);
 }
 
 /* Success */
 .stSuccess {
-    background-color: rgba(22, 163, 74, 0.1) !important;
-    border: 1px solid rgba(22, 163, 74, 0.2) !important;
-    color: #15803d !important;
+    background-color: var(--success-bg) !important;
+    border: 1px solid var(--success-border) !important;
+    color: var(--success-text) !important;
 }
 
 /* Warning */
 .stWarning {
-    background-color: rgba(202, 138, 4, 0.1) !important;
-    border: 1px solid rgba(202, 138, 4, 0.2) !important;
-    color: #a16207 !important;
+    background-color: var(--warning-bg) !important;
+    border: 1px solid var(--warning-border) !important;
+    color: var(--warning-text) !important;
 }
 
 /* Error */
 .stError {
-    background-color: rgba(220, 38, 38, 0.1) !important;
-    border: 1px solid rgba(220, 38, 38, 0.2) !important;
-    color: #b91c1c !important;
+    background-color: var(--error-bg) !important;
+    border: 1px solid var(--error-border) !important;
+    color: var(--error-text) !important;
 }
 
 /* Info */
 .stInfo {
-    background-color: rgba(59, 130, 246, 0.1) !important;
-    border: 1px solid rgba(59, 130, 246, 0.2) !important;
-    color: #1d4ed8 !important;
+    background-color: var(--info-bg) !important;
+    border: 1px solid var(--info-border) !important;
+    color: var(--info-text) !important;
 }
 
 /* ===== Divider ===== */
@@ -262,7 +298,7 @@ hr {
     border-radius: var(--radius) !important;
     padding: 1rem !important;
     background-color: rgba(241, 245, 249, 0.5) !important;
-    transition: all 0.15s ease !important;
+    transition: all 0.2s ease-in-out !important;
 }
 
 [data-testid="stFileUploader"]:hover {
@@ -274,27 +310,29 @@ hr {
     padding: 0 !important;
 }
 
-[data-testid="stFileUploader"] section > div {
+[data-testid="stFileUploader"] section>div {
     padding: 0.5rem !important;
 }
 
 /* ===== Selectbox ===== */
-.stSelectbox > div > div {
+.stSelectbox>div>div {
     border-radius: var(--radius) !important;
 }
 
-.stSelectbox [data-baseweb="select"] > div {
+.stSelectbox [data-baseweb="select"]>div {
     border-color: var(--input) !important;
     border-radius: var(--radius) !important;
+    transition: all 0.2s ease !important;
 }
 
-.stSelectbox [data-baseweb="select"]:focus-within > div {
+.stSelectbox [data-baseweb="select"]:focus-within>div {
     border-color: var(--ring) !important;
     box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.1) !important;
 }
 
 /* ===== Captions ===== */
-.stCaption, small {
+.stCaption,
+small {
     color: var(--muted-foreground) !important;
     font-size: 0.75rem !important;
 }
@@ -322,7 +360,8 @@ hr {
         font-size: 1.5rem !important;
     }
 
-    h2, h3 {
+    h2,
+    h3 {
         font-size: 1.1rem !important;
     }
 
@@ -339,9 +378,4 @@ hr {
 /* ===== Hide extra elements ===== */
 .stDeployButton {
     display: none !important;
-}
-
-/* ===== Smooth transitions ===== */
-* {
-    transition: background-color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
 }

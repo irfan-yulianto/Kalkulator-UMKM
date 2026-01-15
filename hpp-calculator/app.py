@@ -529,8 +529,8 @@ if st.session_state.calculation_result is not None:
 # Footer
 st.divider()
 st.markdown(
-    "<div style='text-align: center; color: #6B7280; font-size: 0.875rem;'>"
-    "Dibuat oleh <a href='https://www.linkedin.com/in/irfan-yulianto/' target='_blank' style='color: #dc2626; text-decoration: none;'>Irfan Yulianto</a> © 2025"
+    "<div style='text-align: center; color: var(--muted-foreground); font-size: 0.875rem;'>"
+    "Dibuat oleh <a href='https://www.linkedin.com/in/irfan-yulianto/' target='_blank' style='color: var(--primary); text-decoration: none;'>Irfan Yulianto</a> © 2025"
     "</div>",
     unsafe_allow_html=True
 )
