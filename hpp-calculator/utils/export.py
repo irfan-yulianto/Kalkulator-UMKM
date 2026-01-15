@@ -388,3 +388,198 @@ def parse_import_file(file_content: bytes, filename: str) -> Tuple[List[Dict], L
         errors.append(f"Error membaca file: {str(e)}")
 
     return ingredients, errors
+
+
+def create_distributor_template() -> bytes:
+    """
+    Create Excel template for Distributor/Reseller products.
+
+    Columns:
+    - Nama_Produk: Nama produk
+    - Harga_Beli: Harga beli per unit dari supplier
+    - Quantity: Jumlah unit yang dibeli
+    - Ongkir: Total ongkos kirim
+    - Handling: Biaya gudang/handling
+
+    Returns:
+        Excel file as bytes
+    """
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Template_Distributor"
+
+    # Styles
+    header_font = Font(bold=True, size=11)
+    header_fill = PatternFill(start_color="DBEAFE", end_color="DBEAFE", fill_type="solid")
+    example_fill = PatternFill(start_color="FEF3C7", end_color="FEF3C7", fill_type="solid")
+    thin_border = Border(
+        left=Side(style='thin'),
+        right=Side(style='thin'),
+        top=Side(style='thin'),
+        bottom=Side(style='thin')
+    )
+
+    # Headers
+    headers = ["Nama_Produk", "Harga_Beli", "Quantity", "Ongkir", "Handling"]
+    for col_idx, header in enumerate(headers, start=1):
+        cell = ws.cell(row=1, column=col_idx, value=header)
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.border = thin_border
+        cell.alignment = Alignment(horizontal='center')
+
+    # Example data
+    examples = [
+        ["Snack ABC", 10000, 100, 50000, 20000],
+        ["Minuman XYZ", 5000, 200, 75000, 30000],
+        ["Biscuit Premium", 15000, 50, 30000, 10000],
+    ]
+
+    for row_idx, row_data in enumerate(examples, start=2):
+        for col_idx, value in enumerate(row_data, start=1):
+            cell = ws.cell(row=row_idx, column=col_idx, value=value)
+            cell.fill = example_fill
+            cell.border = thin_border
+
+    # Add empty rows
+    for row_idx in range(5, 20):
+        for col_idx in range(1, 6):
+            ws.cell(row=row_idx, column=col_idx).border = thin_border
+
+    # Instructions sheet
+    ws_info = wb.create_sheet("Petunjuk")
+    instructions = [
+        ["PETUNJUK TEMPLATE DISTRIBUTOR"],
+        [""],
+        ["1. Isi data produk pada sheet 'Template_Distributor'"],
+        ["2. Kolom yang wajib diisi:"],
+        ["   - Nama_Produk: Nama produk yang dijual kembali"],
+        ["   - Harga_Beli: Harga beli per unit dari supplier (Rp)"],
+        ["   - Quantity: Jumlah unit yang dibeli"],
+        ["   - Ongkir: Total ongkos kirim untuk produk ini (Rp)"],
+        ["   - Handling: Biaya gudang/repack/handling (Rp)"],
+        [""],
+        ["RUMUS HPP:"],
+        ["   HPP per Unit = Harga_Beli + (Ongkir/Qty) + (Handling/Qty)"],
+        [""],
+        ["3. Hapus contoh data (baris kuning) sebelum mengisi data Anda"],
+        ["4. Simpan file dan upload ke aplikasi"],
+    ]
+
+    for row_idx, row_data in enumerate(instructions, start=1):
+        cell = ws_info.cell(row=row_idx, column=1, value=row_data[0] if row_data else "")
+        if row_idx == 1:
+            cell.font = Font(bold=True, size=12)
+
+    # Adjust column widths
+    ws.column_dimensions['A'].width = 20
+    ws.column_dimensions['B'].width = 15
+    ws.column_dimensions['C'].width = 12
+    ws.column_dimensions['D'].width = 12
+    ws.column_dimensions['E'].width = 12
+    ws_info.column_dimensions['A'].width = 60
+
+    # Save to bytes
+    output = io.BytesIO()
+    wb.save(output)
+    output.seek(0)
+    return output.getvalue()
+
+
+def create_service_template() -> bytes:
+    """
+    Create Excel template for Service/Jasa.
+
+    Columns:
+    - Nama_Layanan: Nama layanan
+    - Durasi_Menit: Durasi layanan dalam menit
+    - Tarif_Jam: Tarif karyawan per jam (Rp)
+    - Material: Biaya material/bahan habis pakai (Rp)
+    - Alat: Biaya alat/depresiasi per layanan (Rp)
+
+    Returns:
+        Excel file as bytes
+    """
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Template_Service"
+
+    # Styles
+    header_font = Font(bold=True, size=11)
+    header_fill = PatternFill(start_color="D1FAE5", end_color="D1FAE5", fill_type="solid")
+    example_fill = PatternFill(start_color="FEF3C7", end_color="FEF3C7", fill_type="solid")
+    thin_border = Border(
+        left=Side(style='thin'),
+        right=Side(style='thin'),
+        top=Side(style='thin'),
+        bottom=Side(style='thin')
+    )
+
+    # Headers
+    headers = ["Nama_Layanan", "Durasi_Menit", "Tarif_Jam", "Material", "Alat"]
+    for col_idx, header in enumerate(headers, start=1):
+        cell = ws.cell(row=1, column=col_idx, value=header)
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.border = thin_border
+        cell.alignment = Alignment(horizontal='center')
+
+    # Example data
+    examples = [
+        ["Potong Rambut Pria", 30, 50000, 5000, 2000],
+        ["Creambath", 60, 50000, 25000, 5000],
+        ["Cuci Motor", 15, 30000, 3000, 1000],
+        ["Service AC", 120, 75000, 50000, 10000],
+    ]
+
+    for row_idx, row_data in enumerate(examples, start=2):
+        for col_idx, value in enumerate(row_data, start=1):
+            cell = ws.cell(row=row_idx, column=col_idx, value=value)
+            cell.fill = example_fill
+            cell.border = thin_border
+
+    # Add empty rows
+    for row_idx in range(6, 20):
+        for col_idx in range(1, 6):
+            ws.cell(row=row_idx, column=col_idx).border = thin_border
+
+    # Instructions sheet
+    ws_info = wb.create_sheet("Petunjuk")
+    instructions = [
+        ["PETUNJUK TEMPLATE JASA/SERVICE"],
+        [""],
+        ["1. Isi data layanan pada sheet 'Template_Service'"],
+        ["2. Kolom yang wajib diisi:"],
+        ["   - Nama_Layanan: Nama layanan yang ditawarkan"],
+        ["   - Durasi_Menit: Durasi layanan dalam menit"],
+        ["   - Tarif_Jam: Tarif karyawan per jam (Rp)"],
+        ["   - Material: Biaya bahan habis pakai per layanan (Rp)"],
+        ["   - Alat: Biaya alat/depresiasi per layanan (Rp)"],
+        [""],
+        ["RUMUS HPP:"],
+        ["   Biaya TK = (Durasi/60) x Tarif_Jam"],
+        ["   HPP = Biaya TK + Material + Alat"],
+        [""],
+        ["3. Hapus contoh data (baris kuning) sebelum mengisi data Anda"],
+        ["4. Simpan file dan upload ke aplikasi"],
+    ]
+
+    for row_idx, row_data in enumerate(instructions, start=1):
+        cell = ws_info.cell(row=row_idx, column=1, value=row_data[0] if row_data else "")
+        if row_idx == 1:
+            cell.font = Font(bold=True, size=12)
+
+    # Adjust column widths
+    ws.column_dimensions['A'].width = 22
+    ws.column_dimensions['B'].width = 15
+    ws.column_dimensions['C'].width = 12
+    ws.column_dimensions['D'].width = 12
+    ws.column_dimensions['E'].width = 12
+    ws_info.column_dimensions['A'].width = 60
+
+    # Save to bytes
+    output = io.BytesIO()
+    wb.save(output)
+    output.seek(0)
+    return output.getvalue()
+

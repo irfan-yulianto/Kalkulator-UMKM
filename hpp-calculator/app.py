@@ -14,7 +14,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from utils.calculations import calculate_all, get_top_contributors, validate_ingredients
 from utils.formatters import format_currency, format_percentage, format_gap, format_unit_options
-from utils.export import create_excel_report, create_import_template, parse_import_file
+from utils.export import create_excel_report, create_import_template, parse_import_file, create_distributor_template, create_service_template
 from utils.calc_distributor import calculate_distributor_hpp, validate_distributor_inputs
 from utils.calc_service import calculate_service_hpp, validate_service_inputs
 from database.db import init_db, get_setting, set_setting
@@ -92,17 +92,41 @@ with st.sidebar:
     st.divider()
 
     # Excel Template & Import
-    st.markdown("### 📥 Excel Template & Import")
+    st.markdown("### 📥 Excel Templates")
 
-    # Download template button
+    # Production template
     template_bytes = create_import_template()
     st.download_button(
-        label="📋 Download Excel template",
+        label="🍳 Template Produksi (F&B)",
         data=template_bytes,
-        file_name="hpp_ingredient_template.xlsx",
+        file_name="hpp_produksi_template.xlsx",
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         use_container_width=True
     )
+
+    # Distributor template
+    distributor_template = create_distributor_template()
+    st.download_button(
+        label="📦 Template Distributor",
+        data=distributor_template,
+        file_name="hpp_distributor_template.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        use_container_width=True
+    )
+
+    # Service template
+    service_template = create_service_template()
+    st.download_button(
+        label="💼 Template Jasa/Service",
+        data=service_template,
+        file_name="hpp_service_template.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        use_container_width=True
+    )
+
+    st.divider()
+
+    st.markdown("### 📤 Import Data")
 
     st.markdown("**Upload Excel/CSV bahan (opsional)**")
 
